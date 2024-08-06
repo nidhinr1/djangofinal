@@ -259,7 +259,7 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
 
     # Table data
     data = [
-        ["Product Name", "Qty", "Original Price", "Discounted Price", "Total Price"]
+        ["Product Name", "Qty", "Rate", "Disc.Rate", "Total"]
     ]
 
     for item in cart.values():
@@ -271,7 +271,7 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
     data.append([])
     data.append(["", "", "", "Final Amount:", f"Rs {final_total_price}"])
 
-    table = Table(data, colWidths=[2.0 * inch, 0.75 * inch, 1.75 * inch, 1.75 * inch, 1.75 * inch])
+    table = Table(data, colWidths=[3.0 * inch, 0.75 * inch, 1 * inch, 1.25 * inch, 1.25 * inch])
 
     table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -304,7 +304,16 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
     elements.append(Spacer(1, 24))
     elements.append(thank_you_message)
 
-    doc.build(elements)
+    def draw_border(canvas, doc):
+        canvas.saveState()
+        width, height = letter
+        canvas.setStrokeColor(colors.black)
+        canvas.setLineWidth(1)
+        canvas.rect(20, 30, width - 45, height - 60)  # Adjusting margins
+        canvas.restoreState()
+
+    # Build the document with the onPage callback to draw the border
+    doc.build(elements, onFirstPage=draw_border, onLaterPages=draw_border)
 
     return response
 
