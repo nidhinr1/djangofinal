@@ -146,10 +146,6 @@
         <h1 class="mb-4">Sales Summary</h1>
         <div class="d-flex justify-content-between mb-4">
             <div>
-                <h4>Total Products Sold: {{ total_products_sold }}</h4>
-                <h4>Total Money Earned: {{ total_money_earned }}</h4>
-            </div>
-            <div>
                 <a href="{% url 'sales_today' %}" class="btn btn-primary">Today's Sales</a>
                 <a href="{% url 'sales_this_week' %}" class="btn btn-primary">This Week's Sales</a>
                 <a href="{% url 'sales_summary' %}" class="btn btn-secondary">All Sales</a>
@@ -181,6 +177,10 @@
                 {% endfor %}
             </tbody>
         </table>
+        <div>
+            <h4>Total Products Sold: {{ total_products_sold }}</h4>
+            <h4>Total Money Earned: {{ total_money_earned }}</h4>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>

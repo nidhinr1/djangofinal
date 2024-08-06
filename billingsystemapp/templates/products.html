@@ -137,8 +137,8 @@
             </div>
         </div>
     </nav>
-
-    <div class="container mt-4">
+    
+    <div class="container mt-4" style="padding-top: 20px;">
         <h1 class="mb-4">Product List - 
             {% if stock_type == 'new' %}
                 New Stock
@@ -157,10 +157,10 @@
 
         <form action="{% url 'update_discounts' %}" method="POST" class="mb-4">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Update Discounts</button>
-            <a href="{% url 'filter_products' 'new' %}" class="btn btn-outline-secondary">New Stock</a>
-            <a href="{% url 'filter_products' 'old' %}" class="btn btn-outline-secondary">Old Stock</a>
-            <a href="{% url 'filter_products' 'all' %}" class="btn btn-outline-secondary">All Products</a>
+            <button type="submit" class="btn btn-outline-primary my-2 my-sm-0">Update Discounts</button>
+            <a href="{% url 'filter_products' 'new' %}" class="btn btn-outline-primary my-2 my-sm-0">New Stock</a>
+            <a href="{% url 'filter_products' 'old' %}" class="btn btn-outline-primary my-2 my-sm-0">Old Stock</a>
+            <a href="{% url 'filter_products' 'all' %}" class="btn btn-outline-primary my-2 my-sm-0">All Products</a>
         </form>
 
         <!-- Table of Products -->
@@ -188,7 +188,9 @@
                     <td>{{ product.category.name }}</td>
                     <td>{{ product.manufacturingdate }}</td>
                     <td>
+                        {% if product.manufacturingdate > sixmonths %}
                         <a class="btn btn-sm btn-warning" href="{% url 'product_update' product.product_id %}">Update</a>
+                        {% endif %}
                         <a class="btn btn-sm btn-danger" href="{% url 'product_delete' product.product_id %}">Delete</a>
                     </td>
                 </tr>

@@ -91,11 +91,139 @@ def addcustomer(request):
     else:
         return render(request, 'addcustomers.html')
 
-def generate_pdf_bill(sale_number, cart, purchasetime):
+def billing(request):
+    if request.method == 'POST':
+        if 'add_product' in request.POST:
+            product_id = request.POST.get('product_id')
+            quantity = request.POST.get('quantity')
+            product = get_object_or_404(Product, pk=product_id)
+            cart = request.session.get('cart', {})
+
+            if product.quantity == 0:
+                return render(request, 'billing.html', {
+                    'msg': f'{product.product_name} is out of stock.',
+                    'products': Product.objects.all(),
+                    'cart': cart,
+                    'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
+                    'customers': Customer.objects.all(),
+                })
+
+            try:
+                quantity = int(quantity)
+                if product_id in cart:
+                    new_quantity = cart[product_id]['quantity'] + quantity
+                else:
+                    new_quantity = quantity
+
+                if new_quantity > product.quantity:
+                    return render(request, 'billing.html', {
+                        'msg': f'Quantity requested for {product.product_name} exceeds stock available ({product.quantity}).',
+                        'products': Product.objects.all(),
+                        'cart': cart,
+                        'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
+                        'customers': Customer.objects.all(),
+                    })
+
+                discounted_price = round_to_two_decimal_places(float(product.price) * (1 - (float(product.discount) / 100)))
+
+                if product_id in cart:
+                    cart[product_id]['quantity'] += quantity
+                else:
+                    cart[product_id] = {
+                        'name': product.product_name,
+                        'original_price': round_to_two_decimal_places(float(product.price)),
+                        'discounted_price': discounted_price,
+                        'quantity': quantity
+                    }
+                request.session['cart'] = cart
+            except (ValueError, Product.DoesNotExist):
+                pass
+
+        elif 'remove_product' in request.POST:
+            product_id = request.POST.get('product_id')
+            cart = request.session.get('cart', {})
+            if product_id in cart:
+                del cart[product_id]
+            request.session['cart'] = cart
+
+        elif 'submit_bill' in request.POST:
+            customer_id = request.POST.get('customer_name')
+            customer = get_object_or_404(Customer, pk=customer_id)
+            payment_method = request.POST.get('payment_method')
+            cart = request.session.get('cart', {})
+            sale_number = request.session.get('sale_number', str(uuid.uuid4()))
+            purchasetime = datetime.now()
+
+            try:
+                for product_id, item in cart.items():
+                    product = get_object_or_404(Product, pk=product_id)
+                    if item['quantity'] > product.quantity:
+                        error_message = f"Quantity for {product.product_name} exceeds available stock ({product.quantity})."
+                        return render(request, 'billing.html', {
+                            'products': Product.objects.all(),
+                            'cart': cart,
+                            'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
+                            'error_message': error_message,
+                            'customers': Customer.objects.all(),
+                        })
+
+                    Billing.objects.create(
+                        sale_number=sale_number,
+                        product_id=product,
+                        quantity=item['quantity'],
+                        price=item['discounted_price'],
+                        purchasetime=purchasetime
+                    )
+                    product.quantity -= item['quantity']
+                    product.save()
+
+                response = generate_pdf_bill(
+                    sale_number=sale_number,
+                    cart=cart,
+                    purchasetime=purchasetime,
+                    customer_name=customer.customer_name,
+                    payment_method=payment_method
+                )
+
+                request.session['cart'] = {}
+                request.session['sale_number'] = None
+                return response
+
+            except IntegrityError:
+                error_message = "You cannot add the same product twice in the same bill."
+                return render(request, 'billing.html', {
+                    'products': Product.objects.all(),
+                    'cart': cart,
+                    'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
+                    'error_message': error_message,
+                    'customers': Customer.objects.all(),
+                })
+
+        elif 'create_new_transaction' in request.POST:
+            request.session['cart'] = {}
+            request.session['sale_number'] = None
+            return redirect('billing')
+
+    cart = request.session.get('cart', {})
+    total_price = round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values()))
+
+    return render(request, 'billing.html', {
+        'products': Product.objects.all(),
+        'cart': cart,
+        'total_price': total_price,
+        'customers': Customer.objects.all(),
+    })
+
+
+def round_to_two_decimal_places(value):
+    return round(value, 2)
+
+
+def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_method):
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="bill_{sale_number}.pdf"'
 
-    doc = SimpleDocTemplate(response, pagesize=letter, rightMargin=72, leftMargin=72)  # Added margins
+    doc = SimpleDocTemplate(response, pagesize=letter, rightMargin=72, leftMargin=72)
     elements = []
 
     styles = getSampleStyleSheet()
@@ -142,6 +270,11 @@ def generate_pdf_bill(sale_number, cart, purchasetime):
     ]))
     elements.append(table)
 
+    # Add customer and payment details
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"Customer Name: {customer_name}", normal_style))
+    elements.append(Paragraph(f"Payment Method: {payment_method}", normal_style))
+
     # Add thank you message
     thank_you_message = Paragraph("Thank you for your purchase! Have a great day!", normal_style)
     elements.append(Spacer(1, 24))
@@ -151,126 +284,6 @@ def generate_pdf_bill(sale_number, cart, purchasetime):
 
     return response
 
-def billing(request):
-    products = Product.objects.all()
-    search_query = request.GET.get('search', '')
-
-    if search_query:
-        products = products.filter(Q(product_name__icontains=search_query))
-
-    if request.method == 'POST':
-        cart = request.session.get('cart', {})
-        sale_number = request.session.get('sale_number', None)
-
-        if sale_number is None:
-            sale_number = str(uuid.uuid4())
-            request.session['sale_number'] = sale_number
-
-        if 'add_product' in request.POST:
-            product_id = request.POST.get('product_id')
-            quantity = request.POST.get('quantity')
-            product = get_object_or_404(Product, pk=product_id)
-            
-            if product.quantity == 0:
-                return render(request, 'billing.html', {
-                    'msg': f'{product.product_name} is out of stock.',
-                    'products': products,
-                    'cart': cart,
-                    'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
-                    'search_query': search_query
-                })
-            
-            try:
-                quantity = int(quantity)
-                if product_id in cart:
-                    new_quantity = cart[product_id]['quantity'] + quantity
-                else:
-                    new_quantity = quantity
-                
-                if new_quantity > product.quantity:
-                    return render(request, 'billing.html', {
-                        'msg': f'Quantity requested for {product.product_name} exceeds stock available ({product.quantity}).',
-                        'products': products,
-                        'cart': cart,
-                        'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
-                        'search_query': search_query
-                    })
-
-                # Calculate the discounted price
-                discounted_price = round_to_two_decimal_places(float(product.price) * (1 - (float(product.discount) / 100)))
-                
-                if product_id in cart:
-                    cart[product_id]['quantity'] += quantity
-                else:
-                    cart[product_id] = {
-                        'name': product.product_name,
-                        'original_price': round_to_two_decimal_places(float(product.price)),
-                        'discounted_price': discounted_price,
-                        'quantity': quantity
-                    }
-                request.session['cart'] = cart
-            except (ValueError, Product.DoesNotExist):
-                pass
-
-        if 'remove_product' in request.POST:
-            product_id = request.POST.get('product_id')
-            if product_id in cart:
-                del cart[product_id]
-            request.session['cart'] = cart
-
-        if 'submit_bill' in request.POST:
-            if cart:
-                purchasetime = datetime.now()
-                try:
-                    for product_id, item in cart.items():
-                        product = get_object_or_404(Product, pk=product_id)
-                        if item['quantity'] > product.quantity:
-                            error_message = f"Quantity for {product.product_name} exceeds available stock ({product.quantity})."
-                            return render(request, 'billing.html', {
-                                'products': products,
-                                'cart': cart,
-                                'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
-                                'search_query': search_query,
-                                'error_message': error_message
-                            })
-
-                        Billing.objects.create(
-                            sale_number=sale_number,
-                            product_id=product,
-                            quantity=item['quantity'],
-                            price=item['discounted_price'],  # Final discounted price
-                            purchasetime=purchasetime
-                        )
-                        product.quantity -= item['quantity']
-                        product.save()
-
-                    response = generate_pdf_bill(sale_number, cart, purchasetime)
-                    request.session['cart'] = {}  
-                    request.session['sale_number'] = None
-                    return response
-                except IntegrityError:
-                    error_message = "You cannot add the same product twice in the same bill."
-                    return render(request, 'billing.html', {
-                        'products': products,
-                        'cart': cart,
-                        'total_price': round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values())),
-                        'search_query': search_query,
-                        'error_message': error_message
-                    })
-
-    cart = request.session.get('cart', {})
-    total_price = round_to_two_decimal_places(sum(item['discounted_price'] * item['quantity'] for item in cart.values()))
-
-    return render(request, 'billing.html', {
-        'products': products,
-        'cart': cart,
-        'total_price': total_price,
-        'search_query': search_query
-    })
-
-def round_to_two_decimal_places(value):
-    """Rounds a decimal value to two decimal places."""
-    return round(value, 2)
 
 def product_list(request):
     now = timezone.now().date()
@@ -429,7 +442,7 @@ def filter_products(request, stock_type):
     else:
         products = Product.objects.all()
 
-    return render(request, 'products.html', {'products': products, 'stock_type': stock_type})
+    return render(request, 'products.html', {'products': products, 'stock_type': stock_type ,'sixmonths':six_months_ago})
 
 def sales_summary(request):
     sales = Billing.objects.all()
