@@ -472,6 +472,7 @@ def sales_summary(request):
     sales = Billing.objects.all()
     total_products_sold = sales.aggregate(Sum('quantity'))['quantity__sum'] or 0
     total_money_earned = sales.aggregate(Sum('price'))['price__sum'] or 0
+    total_money_earned=round_to_two_decimal_places(total_money_earned)
     context = {
         'sales': sales,
         'total_products_sold': total_products_sold,
@@ -484,6 +485,7 @@ def sales_today(request):
     sales = Billing.objects.filter(purchasetime__date=today)
     total_products_sold = sales.aggregate(Sum('quantity'))['quantity__sum'] or 0
     total_money_earned = sales.aggregate(Sum('price'))['price__sum'] or 0
+    total_money_earned=round_to_two_decimal_places(total_money_earned)
     context = {
         'sales': sales,
         'total_products_sold': total_products_sold,
@@ -496,6 +498,7 @@ def sales_this_week(request):
     sales = Billing.objects.filter(purchasetime__date__gte=start_of_week)
     total_products_sold = sales.aggregate(Sum('quantity'))['quantity__sum'] or 0
     total_money_earned = sales.aggregate(Sum('price'))['price__sum'] or 0
+    total_money_earned=round_to_two_decimal_places(total_money_earned)
     context = {
         'sales': sales,
         'total_products_sold': total_products_sold,
