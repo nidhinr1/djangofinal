@@ -245,14 +245,19 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
     # Add main title
     main_title = Paragraph("Purchase Invoice", company_title_style)
     elements.append(main_title)
+    elements.append(Spacer(1, 12))
+
     
     
-    elements.append(Paragraph("Gst:08AALCR2857A1ZD", normal_style))
     elements.append(Paragraph("Phone:9633477499", normal_style))
     elements.append(Paragraph("Email:waenterprise@gmail.com", normal_style))
     elements.append(Paragraph("Website:waenterprise.com", normal_style))
     elements.append(Paragraph("Address:Near Attingal KSRTC bus stand,Attingal,Trivandrum,Kerala,Pincode:695305.", normal_style))
     elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph("Gst:08AALCR2857A1ZD", normal_style))
+    elements.append(Spacer(1, 12))
+
 
     elements.append(Paragraph(f"Purchase Time: {purchasetime.strftime('%Y-%m-%d %H:%M:%S')}", normal_style))
     elements.append(Spacer(1, 12))

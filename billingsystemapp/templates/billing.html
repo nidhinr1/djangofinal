@@ -185,6 +185,7 @@
                         <option value="{{ customer.customer_id }}">{{ customer.customer_name }}</option>
                     {% endfor %}
                 </select>
+                <a href="{% url 'addcustomer' %}">Create new customer</a>
             </div>
             
             <div>
