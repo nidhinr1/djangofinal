@@ -229,19 +229,30 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
     styles = getSampleStyleSheet()
     title_style = styles['Title']
     company_title_style = ParagraphStyle(name='CompanyTitle', fontSize=18, alignment=1)
+    add_style = ParagraphStyle(name='add_style', fontSize=10, alignment=1)
     normal_style = styles['Normal']
 
     # Add company name
-    company_name = "Your Company Name"
-    company_title = Paragraph(company_name, company_title_style)
+    company_name = "WA Enterprise"
+    company_title = Paragraph(company_name, title_style)
     elements.append(company_title)
     elements.append(Spacer(1, 12))
-
-    # Add main title
-    main_title = Paragraph("Purchase Bill", title_style)
-    elements.append(main_title)
+    address = Paragraph("Your trusted destination for cutting-edge electronics and unbeatable deals.", add_style)
+    elements.append(address)
     elements.append(Spacer(1, 12))
     
+    # Add main title
+    main_title = Paragraph("Purchase Invoice", company_title_style)
+    elements.append(main_title)
+    
+    
+    elements.append(Paragraph("Gst:08AALCR2857A1ZD", normal_style))
+    elements.append(Paragraph("Phone:9633477499", normal_style))
+    elements.append(Paragraph("Email:waenterprise@gmail.com", normal_style))
+    elements.append(Paragraph("Website:waenterprise.com", normal_style))
+    elements.append(Paragraph("Address:Near Attingal KSRTC bus stand,Attingal,Trivandrum,Kerala,Pincode:695305.", normal_style))
+    elements.append(Spacer(1, 12))
+
     elements.append(Paragraph(f"Purchase Time: {purchasetime.strftime('%Y-%m-%d %H:%M:%S')}", normal_style))
     elements.append(Spacer(1, 12))
 
@@ -259,7 +270,7 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
     data.append([])
     data.append(["", "", "", "Final Amount:", f"Rs {final_total_price}"])
 
-    table = Table(data, colWidths=[1.5 * inch, 1.0 * inch, 1.5 * inch, 1.5 * inch, 1.5 * inch])
+    table = Table(data, colWidths=[2.0 * inch, 0.75 * inch, 1.75 * inch, 1.75 * inch, 1.75 * inch])
 
     table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -274,6 +285,18 @@ def generate_pdf_bill(sale_number, cart, purchasetime, customer_name, payment_me
     elements.append(Spacer(1, 12))
     elements.append(Paragraph(f"Customer Name: {customer_name}", normal_style))
     elements.append(Paragraph(f"Payment Method: {payment_method}", normal_style))
+
+    
+    term_title_style = ParagraphStyle(name='CompanyTitle', fontSize=10)
+    terms = Paragraph("**Terms and Conditions**", term_title_style)
+    terms1= Paragraph("1.Customer should pay the due amount within 15 days", normal_style)
+    terms2= Paragraph("2.Goods once sold shall not be returned", normal_style)
+    terms3= Paragraph("3.Our responsibility ceases as soon as the goods leave our premises", normal_style)
+    elements.append(Spacer(1, 24))
+    elements.append(terms)
+    elements.append(terms1)
+    elements.append(terms2)
+    elements.append(terms3)
 
     # Add thank you message
     thank_you_message = Paragraph("Thank you for your purchase! Have a great day!", normal_style)
