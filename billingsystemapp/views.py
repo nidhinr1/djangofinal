@@ -151,7 +151,7 @@ def billing(request):
             customer = get_object_or_404(Customer, pk=customer_id)
             payment_method = request.POST.get('payment_method')
             cart = request.session.get('cart', {})
-            sale_number = request.session.get('sale_number', str(uuid.uuid4()))
+            sale_number = str(uuid.uuid4())
             purchasetime = datetime.now()
 
             try:
@@ -213,6 +213,7 @@ def billing(request):
         'total_price': total_price,
         'customers': Customer.objects.all(),
     })
+
 
 
 def round_to_two_decimal_places(value):
